@@ -1,0 +1,21 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "System": "Information",
+      "Microsoft": "None",
+      "System.Net.Http.HttpClient.Elastic.ClientHandler": "None"
+    }
+  },
+  "Syslog": {
+    "facility": 23,
+    "appname": "elastic-agent",
+    "apphost": "monohosta",
+    "address": "udp://statistic_rsyslog:514"
+  },
+  "url": "http://elasticsearch:9200",
+  "indexes": [ "telegraf-*", "syslog-*" ],
+  "limits": [ "128mb", "128mb" ], // tb,gb,mb,kb
+  "check_rate":  "0.9", // [0.5:0.9]
+  "interval": "10m" // d,h,m,s
+}

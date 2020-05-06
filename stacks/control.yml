@@ -1,0 +1,124 @@
+version: '3.5'
+services:
+#==================================RABBITMQ==================================
+  rabbitmq:
+    image: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: rabbit
+      RABBITMQ_DEFAULT_VHOST: /host
+    ports:
+      - "15672:15672"
+    networks: 
+      - inner_net      
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+    logging:
+      driver: syslog
+      options:
+        tag: rabbitmq
+        syslog-address: "udp://localhost:5140"
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: 
+          - node.role == manager 
+  rabbitmq_init:
+    image: hosta-image:5000/curl
+    networks: 
+      - inner_net
+    configs:
+      - source: wait-for
+        target: /wait-for
+        mode: 0555
+      - source: QLimits.json
+        target: /QLimits.json
+        mode: 0444 
+    command: /bin/sh -c "/wait-for rabbitmq:15672 --timeout=120 && curl -f -X PUT 'http://prorabbit:prorabbit@rabbitmq:15672/api/policies/%2fhosta/QLimits' -d @/QLimits.json"
+    logging:
+      driver: syslog
+      options:
+        tag: rabbitmq-init
+        syslog-address: "udp://localhost:5140"
+    depends_on:
+      - rabbitmq
+    deploy:
+      mode: global      
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: 
+          - node.role == manager 
+#==================================REDIS=====================================          
+  redis:
+    image: image:5000/redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+       - redis-data:/data
+       - /etc/timezone:/etc/timezone:ro
+    configs:
+       - source: redis.conf
+         target: /usr/local/etc/redis/redis.conf
+    networks: 
+      - inner_net               
+    logging:
+      driver: syslog
+      options:
+        tag: "redis"
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: 
+          - node.role == manager   
+#==================POSTGRES DB===============================          
+  postgres:
+    image: postgres
+    shm_size: "512mb"
+    environment:
+      - POSTGRES_PASSWORD=postgres    
+    volumes:
+      - postgres-pip-data:/var/lib/postgresql/data    
+    logging:
+      driver: syslog
+      options:
+        tag: "postgres-web"
+    configs:
+      - source: postgres-web.conf
+        target: /etc/postgresql/postgresql.conf
+      - source: init-db.sh
+        target: /docker-entrypoint-initdb.d/init-db.sh
+      - source: init-web.sql
+        target: /sql/init.sql
+    networks: 
+      - inner_net
+      - default
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: 
+          - node.role == manager 
+configs:
+   postgres-web.conf:
+     external: true
+   redis.conf:
+     external: true
+   wait-for-it.sh:
+     external: true
+   wait-for:
+     external: true
+   init-web.sql:
+     external: true
+   init-db.sh:
+     external: true
+
+networks:
+  inner_net:
+    external: true
+volumes:
+  postgres-web-data:
+    external: true
+  redis-data:
+    external: true

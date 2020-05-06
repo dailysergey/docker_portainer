@@ -1,0 +1,37 @@
+{
+  "index_patterns": ["syslog-*"],
+  "template": ["syslog-*"],
+  "mappings": {
+    "events": {      
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+		"@ip": {
+          "type": "ip"
+        },
+		"host": {
+          "type": "keyword"
+        },
+		"severity": {
+          "type": "keyword"
+        },
+		"facility": {
+          "type": "keyword"
+        },
+		"level": {
+          "type": "short"
+        },
+		"pid": {
+          "type": "keyword"
+        },
+		"appname": {
+          "type": "keyword"
+        },
+		"message": {
+          "type": "text"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+stages:
+  - staging
+  
+stage-short:
+  stage: staging
+  image: [SOME_STAGE]
+  only:
+    changes:
+      - [SOME_PROJECT]/*   
+    refs:
+      - master
+  script:  
+    - /scripts/service.sh $PORTAINER_ADMIN $PORTAINER_PASS

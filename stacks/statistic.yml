@@ -1,0 +1,138 @@
+version: '3.5'
+services:
+
+#--------------Metrics----------------------
+  telegraf:
+    image: image:5000/telegraf
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - inner_net    
+    configs:
+      - source: telegraf.conf
+        target: /etc/telegraf/telegraf.conf
+        mode: 0444
+    depends_on:
+      - rsyslog
+    logging:
+      driver: syslog
+      options:
+        tag: "telegraf"
+        syslog-address: "udp://localhost:5140"
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role==manager]
+#------------Logs----------------
+  rsyslog:
+    image: image:5000/rsyslog-log
+    volumes:
+      - /var/log/:/logs
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - inner_net
+    ports:
+     - published: 5140
+       target: 514
+       protocol: udp
+    environment:
+      RSYSLOG_CONF: /config/rsyslog.conf
+      TZ: Europe/Moscow
+    entrypoint: 
+      - "/bin/sh"
+      - "-c" 
+      - | 
+         /home/appliance/wait-for elasticsearch:9200 --timeout=120 &&
+         curl -X PUT 'http://elasticsearch:9200/_template/tpsyslog' -H 'Content-Type:application/json' -d @/home/appliance/tp_syslog.json &&
+         /home/appliance/starter.sh rsyslog
+    depends_on:
+      - elasticsearch
+    configs:
+      - source: rsyslog-log.conf
+        target: /config/rsyslog.conf
+      - source: rsyslog-logrotate
+        target: /etc/logrotate.d/
+      - source: wait-for
+        target: /home/appliance/wait-for
+        mode: 0555
+      - source: tp_syslog.json
+        target: /home/appliance/tp_syslog.json
+    logging:
+      driver: syslog
+      options:
+        tag: "rsyslog"
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role==manager]
+#---------------ELASTICSEARCH----------
+  elasticsearch:
+    image: image:5000/elasticsearch
+    environment:
+        - discovery.type=single-node
+        - cluster.name=docker-cluster
+        - bootstrap.memory_lock=true
+        - network.host=0.0.0.0
+        - xpack.security.enabled=false
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+        - "discovery.zen.ping.unicast.hosts=elasticsearch"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - inner_net
+    logging:
+      driver: syslog
+      options:
+        tag: "elastic"    
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role==manager]
+#----------------------- Cleaning logs ------------------       
+  elastic-agent:
+    image: image:5000/elastic-agent
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    configs:
+      - source: elastic-agent.json
+        target: /app/appsettings.json
+    networks:
+      - inner_net
+    logging:
+      driver: syslog
+      options:
+        tag: "elastic"    
+    restart: always
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role==manager]
+        
+
+configs:
+  rsyslog-log.conf:
+    external: true
+  rsyslog-logrotate:
+    external: true
+  wait-for:
+    external: true
+  tp_syslog.json:
+    external: true
+  telegraf.conf:
+    external: true
+  elastic-agent.json:
+    external: true
+networks:
+  inner_net:
+    external: true
+volumes:
+  elasticsearch-data:
+    external: true

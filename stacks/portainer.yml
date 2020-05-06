@@ -1,0 +1,61 @@
+version: '3.5'
+services:
+  agent:
+    image: portainer/agent
+    environment:
+      AGENT_PORT: 9001
+      LOG_LEVEL: debug
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks:
+      - agent_network
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.platform.os == linux]
+        
+  portainer:
+    image: portainer/portainer
+    command: -H tcp://tasks.agent:9001 --tlsskipverify
+    ports:
+      - "9000:9000"
+    volumes:
+      - data:/data
+    networks:
+      - agent_network
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+  # registry:
+    # image: registry:2
+    # ports:
+      # - "5000:443"
+    # environment:
+      # - "REGISTRY_HTTP_ADDR=0.0.0.0:443"
+      # - "REGISTRY_HTTP_TLS_CERTIFICATE=/run/secrets/registry.crt"
+      # - "REGISTRY_HTTP_TLS_KEY=/run/secrets/registry.key"
+    # volumes:
+      # - registry:/var/lib/registry
+    # secrets:
+      # - registry.crt
+      # - registry.key
+    # deploy:
+      # mode: replicated
+      # replicas: 1
+      # placement:
+        # constraints: [node.role == manager]
+volumes:
+  data:
+# registry:
+networks:
+  agent_network:
+    driver: overlay
+    attachable: true
+# secrets:
+  # registry.crt:
+    # external: true
+  # registry.key:
+    # external: true

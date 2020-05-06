@@ -1,0 +1,41 @@
+version: '3.5'
+services:
+#==================PGADMIN===============================
+  pgadmin:
+    image: pgadmin4
+    ports:
+       - 8081:80
+    environment:
+       - PGADMIN_DEFAULT_EMAIL=pgadmin@pgadmin.ru
+       - PGADMIN_DEFAULT_PASSWORD=pgadmin
+    logging:
+      driver: syslog
+      options:
+        tag: "pgadmin"
+    restart: always
+    networks: 
+      - inner_net
+      - default
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: 
+          - node.role == manager
+#---------------GRAFANA--------------------
+  grafana:
+    image: grafana
+    environment:
+      - "GF_SECURITY_ADMIN_USER=admin"
+      - "GF_SECURITY_ADMIN_PASSWORD=admin"
+    volumes:
+      - grafana:/var/lib/grafana
+    networks:
+      - inner_net
+    ports:
+     - 3000:3000
+volumes:
+  grafana:
+networks:
+  inner_net:
+    external: true

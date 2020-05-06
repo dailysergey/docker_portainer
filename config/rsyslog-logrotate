@@ -1,0 +1,11 @@
+/logs/hosta.log {
+  hourly
+  su root root
+  rotate 7
+  compress
+  missingok
+  notifempty
+  postrotate
+    kill -HUP $(cat /run/rsyslogd.pid)
+  endscript
+}
